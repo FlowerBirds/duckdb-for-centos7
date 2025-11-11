@@ -64,7 +64,8 @@ jobs:
                 make \
                 perl-IPC-Cmd \
                 openssl-devel \
-                zlib-devel
+                zlib-devel \
+                wget
               
               # 4. 安装高版本CMake（CentOS 7默认cmake版本过低）
               wget https://github.com/Kitware/CMake/releases/download/v3.21.3/cmake-3.21.3-linux-x86_64.sh
