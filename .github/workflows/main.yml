@@ -36,29 +36,37 @@ jobs:
         shell: bash
         run: |
           export PWD=$(pwd)
-          docker run                                                           \
-            -v $PWD:$PWD                                                        \
-            -e CMAKE_BUILD_PARALLEL_LEVEL=2                                    \
-            -e OVERRIDE_GIT_DESCRIBE=${{ github.event.inputs.duckdb_tag }}      \
-            -e EXTENSION_CONFIGS="$PWD/.github/config/bundled_extensions.cmake" \
-            -e ENABLE_EXTENSION_AUTOLOADING=1                                  \
-            -e ENABLE_EXTENSION_AUTOINSTALL=1                                  \
-            -e BUILD_BENCHMARK=1                                               \
-            -e FORCE_WARN_UNUSED=1                                             \
-            quay.io/pypa/${{ matrix.config.image }}                            \
-            bash -c "
-              set -e
-              # Install required tools
-              yum install -y perl-IPC-Cmd centos-release-scl
-              yum install -y devtoolset-12 devtoolset-12-gcc-c++
-              
-              # Enable GCC 12 toolchain
-              source /opt/rh/devtoolset-12/enable
-              export CC=gcc
-              export CXX=g++
-
-              git config --global --add safe.directory $PWD
-              make -C $PWD
+          docker run                                                             \
+          -v $PWD:$PWD                                                           \
+          -e CMAKE_BUILD_PARALLEL_LEVEL=2                                        \
+          -e OVERRIDE_GIT_DESCRIBE=$OVERRIDE_GIT_DESCRIBE                        \
+          -e EXTENSION_CONFIGS="$PWD/.github/config/bundled_extensions.cmake"    \
+          -e ENABLE_EXTENSION_AUTOLOADING=1                                      \
+          -e ENABLE_EXTENSION_AUTOINSTALL=1                                      \
+          -e BUILD_BENCHMARK=1                                                   \
+          -e FORCE_WARN_UNUSED=1                                                 \
+          quay.io/pypa/manylinux_2_28_${{ matrix.config.image }}                  \
+          bash -c "
+            set -e
+            # Replace CentOS 7 repositories with archived mirrors (EOL fix)
+            sed -i 's|^mirrorlist=|#mirrorlist=|g' /etc/yum.repos.d/CentOS-*
+            sed -i 's|^#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-*
+            
+            # Fix SCLo repositories (Software Collections)
+            if [ -f /etc/yum.repos.d/CentOS-SCLo-scl.repo ]; then
+              sed -i 's|^mirrorlist=|#mirrorlist=|g' /etc/yum.repos.d/CentOS-SCLo-*
+              sed -i 's|^#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-SCLo-*
+            fi
+      
+            # Install required packages
+            yum install -y perl-IPC-Cmd gcc-toolset-12 gcc-toolset-12-gcc-c++
+          
+            source /opt/rh/gcc-toolset-12/enable
+            export CC=gcc
+            export CXX=g++
+      
+            git config --global --add safe.directory $PWD
+            make -C $PWD
             "
 
       - name: Verify platform
