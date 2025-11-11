@@ -45,6 +45,7 @@ jobs:
           -e BUILD_BENCHMARK=1                                                   \
           -e FORCE_WARN_UNUSED=1                                                 \
           -e DUCKDB_EXPLICIT_PLATFORM=linux_${{ matrix.config.arch }}            \
+          -e DUCKDB_PLATFORM=linux_amd64                                         \
           quay.io/pypa/${{ matrix.config.image }}                  \
           bash -c "
             set -e
