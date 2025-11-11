@@ -15,7 +15,6 @@ jobs:
       matrix:
         config: 
           - { arch: amd64, image: manylinux2014_x86_64, runner: ubuntu-latest }
-          - { arch: arm64, image: manylinux2014_aarch64, runner: ubuntu-24.04-arm }
 
     name: Build (${{ matrix.config.arch }})
     runs-on: ${{ matrix.config.runner }}
@@ -45,6 +44,7 @@ jobs:
           -e ENABLE_EXTENSION_AUTOINSTALL=1                                      \
           -e BUILD_BENCHMARK=1                                                   \
           -e FORCE_WARN_UNUSED=1                                                 \
+          -e DUCKDB_EXPLICIT_PLATFORM=linux_${{ matrix.config.arch }}            \
           quay.io/pypa/${{ matrix.config.image }}                  \
           bash -c "
             set -e
