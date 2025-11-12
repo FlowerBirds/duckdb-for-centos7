@@ -72,7 +72,15 @@ jobs:
             export CC=gcc
             export CXX=g++
             
-            make -C /duckdb release
+            # make -C /duckdb release
+            mkdir -p build/release
+            cd build/release 
+            cmake -DCMAKE_BUILD_TYPE=Release \
+              -DDUCKDB_EXPLICIT_PLATFORM=linux_amd64 \
+              -DCMAKE_CXX_FLAGS="-D_GLIBCXX_USE_CXX11_ABI=1" \
+              -DCMAKE_C_FLAGS="-D_GLIBCXX_USE_CXX11_ABI=1" \
+              -G "Ninja"  ../.. 
+            cmake --build . --config Release
           "
 
       - name: List Symbols
