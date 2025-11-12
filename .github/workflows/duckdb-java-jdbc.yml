@@ -73,6 +73,9 @@ jobs:
             export CXX=g++
             
             # make -C /duckdb release
+            ls -l
+            cd /duckdb
+            ls -l
             mkdir -p build/release
             cd build/release 
             cmake -DCMAKE_BUILD_TYPE=Release \
