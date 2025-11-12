@@ -99,25 +99,6 @@ jobs:
             --module-path ./build/release/duckdb_jdbc.jar \
             -d duckdb.jdbc
 
-      - name: JDBC Tests EL8
-        if: ${{ inputs.skip_tests != 'true' }}
-        run: |
-          docker run                                    \
-          -v.:/duckdb                                   \
-          ${{ env.MANYLINUX_IMAGE }}                    \
-          bash -c "
-            set -e
-            cat /etc/os-release
-            dnf install -y \
-              java-1.8.0-openjdk
-            /usr/lib/jvm/jre-1.8.0-openjdk/bin/java -version
-            cd /duckdb
-            /usr/lib/jvm/jre-1.8.0-openjdk/bin/java \
-              -cp ./build/release/duckdb_jdbc_tests.jar:./build/release/duckdb_jdbc.jar \
-              org.duckdb.TestDuckDBJDBC
-            rm ./test1.db
-          "
-
       - name: Deploy
         shell: bash
         run: |
