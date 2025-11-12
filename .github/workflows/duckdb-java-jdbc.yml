@@ -76,6 +76,8 @@ jobs:
             # 把内容插到文件顶部
             cat /duckdb/centos7/header.cmake CMakeLists.txt > /tmp/CMakeLists.txt.new
             mv /tmp/CMakeLists.txt.new CMakeLists.txt
+            sed -i '11i\#define _GLIBCXX_USE_CXX11_ABI 1' src/duckdb/src/include/duckdb/common/platform.hpp
+            head -n 15 src/duckdb/src/include/duckdb/common/platform.hpp
             ls -l
             mkdir -p build/release
             cd build/release 
