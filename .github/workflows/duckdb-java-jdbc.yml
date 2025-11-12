@@ -40,7 +40,8 @@ jobs:
           bash -c "
             set -e
             cat /etc/os-release
-            dnf install -y \
+            yum install -y centos-release-scl-rh 
+            yum install -y \
               java-1.8.0-openjdk-devel \
               ninja-build \
               devtoolset-11 \
