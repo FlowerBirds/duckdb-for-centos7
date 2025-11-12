@@ -22,26 +22,11 @@ jobs:
       MANYLINUX_IMAGE: quay.io/pypa/manylinux2014_x86_64
       # Spark testing env vars below
       DUCKDB_JDBC_JAR: ${{ github.workspace }}/build/release/duckdb_jdbc.jar
-      SPARK_SQL_EXE: ${{ github.workspace }}/sparktest/spark-3.5.3-bin-hadoop3/bin/spark-sql
-      POSTGRES_HOST: 127.0.0.1
-      POSTGRES_PORT: 5432
-      POSTGRES_MAINTENANCE_DB: postgres
-      POSTGRES_USERNAME: postgres
-      POSTGRES_PASSWORD: postgres
-      DUCKLAKE_CATALOG_DB: lake_test
-      PARQUET_FILE_URL: https://blobs.duckdb.org/data/taxi_2019_04.parquet
-      SESSION_INIT_SQL_FILE: ${{ github.workspace }}/sparktest/spark-session-init.sql
-      MINIO_EXE: ${{ github.workspace }}/sparktest/minio
-      MINIO_PID: ${{ github.workspace }}/sparktest/minio.pid
-      MC_EXE: ${{ github.workspace }}/sparktest/mc
-      MINIO_DATA: ${{ github.workspace }}/sparktest/minio_data
-      MINIO_HOST: 127.0.0.1
-      MINIO_PORT: 9000
     steps:
       - name: Checkout DuckDB JDBC source
         uses: actions/checkout@v4
         with:
-          repository: duckdb/duckdb-jdbc
+          repository: duckdb/duckdb-java
           ref: ${{ github.event.inputs.duckdb_tag }}
           fetch-depth: 0
 
