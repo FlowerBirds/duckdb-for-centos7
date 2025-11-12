@@ -53,6 +53,8 @@ jobs:
             yum install -y \
                 devtoolset-11 \
                 devtoolset-11-gcc-c++ \
+                java-1.8.0-openjdk-devel \
+                ninja-build \
                 make \
                 perl-IPC-Cmd \
                 openssl-devel \
