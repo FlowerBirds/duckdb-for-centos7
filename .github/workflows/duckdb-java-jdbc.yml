@@ -63,6 +63,7 @@ jobs:
                 zlib-devel \
                 wget
             source /opt/rh/devtoolset-11/enable
+            export CMAKE_CXX_FLAGS="-D_GLIBCXX_USE_CXX11_ABI=1"
             make -C /duckdb release
           "
 
