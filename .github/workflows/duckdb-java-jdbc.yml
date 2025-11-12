@@ -65,7 +65,18 @@ jobs:
             export CMAKE_CXX_FLAGS='-D_GLIBCXX_USE_CXX11_ABI=1'
             export CMAKE_C_FLAGS='-D_GLIBCXX_USE_CXX11_ABI=1'
             
-            make -C /duckdb release
+            #make -C /duckdb release
+            # ---------- 编译 ----------
+            cmake -G Ninja \
+                  -DCMAKE_BUILD_TYPE=Release \
+                  -DCMAKE_CXX_FLAGS='$CMAKE_CXX_FLAGS' \
+                  -DCMAKE_C_FLAGS='$CMAKE_C_FLAGS' \
+                  -DDUCKDB_EXPLICIT_PLATFORM=linux_amd64 \
+                  -B /duckdb/build \
+                  -S /duckdb
+            cmake --build /duckdb/build --parallel $(nproc)
+            # ---------- 打包 jar ----------
+            cd /duckdb/build && make -f ../Makefile jdbc
           "
 
       - name: List Symbols
