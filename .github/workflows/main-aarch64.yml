@@ -1,0 +1,136 @@
+name: Build DuckDB for CentOS7（aarch64）
+
+on:
+  workflow_dispatch:
+    inputs:
+      duckdb_tag:
+        description: 'DuckDB tag to build (e.g., v1.0.0)'
+        required: true
+        type: string
+permissions:
+  contents: write
+  pull-requests: read
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        config: 
+          - { arch: aarch64, image: manylinux2014_aarch64, runner: ubuntu-arm64 }
+
+    name: Build (${{ matrix.config.arch }})
+    runs-on: ${{ matrix.config.runner }}
+
+    steps:
+      - name: Checkout DuckDB source
+        uses: actions/checkout@v4
+        with:
+          repository: duckdb/duckdb
+          ref: ${{ github.event.inputs.duckdb_tag }}
+          fetch-depth: 0
+
+      - name: Install dependencies
+        run: |
+          python3 -m pip install pytest
+
+      - name: Build for CentOS7 (glibc 2.17)
+        shell: bash
+        run: |
+          export PWD=$(pwd)
+          docker run                                                             \
+          -v $PWD:$PWD                                                           \
+          -e CMAKE_BUILD_PARALLEL_LEVEL=2                                        \
+          -e OVERRIDE_GIT_DESCRIBE=$OVERRIDE_GIT_DESCRIBE                        \
+          -e EXTENSION_CONFIGS="$PWD/.github/config/bundled_extensions.cmake"    \
+          -e ENABLE_EXTENSION_AUTOLOADING=1                                      \
+          -e ENABLE_EXTENSION_AUTOINSTALL=1                                      \
+          -e BUILD_BENCHMARK=1                                                   \
+          -e FORCE_WARN_UNUSED=1                                                 \
+          -e DUCKDB_EXPLICIT_PLATFORM=linux_${{ matrix.config.arch }}            \
+          -e DUCKDB_PLATFORM=linux_amd64                                         \
+          quay.io/pypa/${{ matrix.config.image }}                  \
+          bash -c "
+            set -e
+            # Replace CentOS 7 repositories with archived mirrors (EOL fix)
+            sed -i 's|^mirrorlist=|#mirrorlist=|g' /etc/yum.repos.d/CentOS-*
+            sed -i 's|^#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-*
+            
+            # Fix SCLo repositories (Software Collections)
+            if [ -f /etc/yum.repos.d/CentOS-SCLo-scl.repo ]; then
+              sed -i 's|^mirrorlist=|#mirrorlist=|g' /etc/yum.repos.d/CentOS-SCLo-*
+              sed -i 's|^#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-SCLo-*
+            fi
+            # 3. 安装依赖：高版本GCC、Make等
+            yum install -y \
+                devtoolset-11 \
+                devtoolset-11-gcc-c++ \
+                make \
+                perl-IPC-Cmd \
+                openssl-devel \
+                zlib-devel \
+                wget
+              
+              # 4. 安装高版本CMake（CentOS 7默认cmake版本过低）
+              wget https://github.com/Kitware/CMake/releases/download/v3.21.3/cmake-3.21.3-linux-x86_64.sh
+              chmod +x cmake-3.21.3-linux-x86_64.sh
+              ./cmake-3.21.3-linux-x86_64.sh --skip-license --prefix=/usr/local
+              
+              # 5. 启用高版本GCC
+              source /opt/rh/devtoolset-11/enable
+              export CC=gcc
+              export CXX=g++
+      
+            git config --global --add safe.directory $PWD
+            make -C $PWD
+            "
+
+      - name: Verify platform
+        shell: bash
+        run: ./build/release/duckdb -c "PRAGMA platform;"
+
+      - name: Verify glibc version compatibility
+        shell: bash
+        run: |
+          # Check the minimum glibc version required by the built library
+          objdump -T build/release/src/libduckdb.so | grep GLIBC_ | awk '{print $5}' | sort -V | uniq | grep -v '^GLIBC_' | head -n 1
+          echo "If the above output is <= 2.17, the build is compatible with CentOS7"
+
+      - name: Package artifacts
+        shell: bash
+        run: |
+          python3 scripts/amalgamation.py
+          zip -j duckdb_cli-linux-${{ matrix.config.arch }}-${{ github.event.inputs.duckdb_tag }}.zip build/release/duckdb
+          gzip -9 -k -n -c build/release/duckdb > duckdb_cli-linux-${{ matrix.config.arch }}-${{ github.event.inputs.duckdb_tag }}.gz
+          zip -j libduckdb-linux-${{ matrix.config.arch }}-${{ github.event.inputs.duckdb_tag }}.zip build/release/src/libduckdb*.* src/amalgamation/duckdb.hpp src/include/duckdb.h
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: duckdb-binaries-linux-${{ matrix.config.arch }}
+          path: |
+            libduckdb-linux-${{ matrix.config.arch }}-${{ github.event.inputs.duckdb_tag }}.zip
+            duckdb_cli-linux-${{ matrix.config.arch }}-${{ github.event.inputs.duckdb_tag }}.zip
+            duckdb_cli-linux-${{ matrix.config.arch }}-${{ github.event.inputs.duckdb_tag }}.gz
+
+  release:
+    name: Create Release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: duckdb-${{ github.event.inputs.duckdb_tag }}-centos7
+          name: DuckDB ${{ github.event.inputs.duckdb_tag }} for CentOS7
+          body: |
+            DuckDB ${{ github.event.inputs.duckdb_tag }} built for CentOS7 (glibc 2.17)
+            - amd64 and arm64 architectures
+            - Static and dynamic libraries included
+          files: |
+            duckdb-binaries-linux-amd64/*.zip
+            duckdb-binaries-linux-amd64/*.gz
+          draft: false
+          prerelease: false
