@@ -123,14 +123,14 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: duckdb-${{ github.event.inputs.duckdb_tag }}-centos7
-          name: DuckDB ${{ github.event.inputs.duckdb_tag }} for CentOS7
+          tag_name: duckdb-${{ github.event.inputs.duckdb_tag }}-centos7-aarch64
+          name: DuckDB ${{ github.event.inputs.duckdb_tag }} for CentOS7 (aarch64)
           body: |
             DuckDB ${{ github.event.inputs.duckdb_tag }} built for CentOS7 (glibc 2.17)
             - amd64 and arm64 architectures
             - Static and dynamic libraries included
           files: |
-            duckdb-binaries-linux-amd64/*.zip
-            duckdb-binaries-linux-amd64/*.gz
+            duckdb-binaries-linux-${{ matrix.config.arch }}/*.zip
+            duckdb-binaries-linux-${{ matrix.config.arch }}/*.gz
           draft: false
           prerelease: false
