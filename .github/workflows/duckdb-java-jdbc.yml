@@ -40,12 +40,24 @@ jobs:
           bash -c "
             set -e
             cat /etc/os-release
-            yum install -y centos-release-scl-rh 
+            # Replace CentOS 7 repositories with archived mirrors (EOL fix)
+            sed -i 's|^mirrorlist=|#mirrorlist=|g' /etc/yum.repos.d/CentOS-*
+            sed -i 's|^#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-*
+            
+            # Fix SCLo repositories (Software Collections)
+            if [ -f /etc/yum.repos.d/CentOS-SCLo-scl.repo ]; then
+              sed -i 's|^mirrorlist=|#mirrorlist=|g' /etc/yum.repos.d/CentOS-SCLo-*
+              sed -i 's|^#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-SCLo-*
+            fi
+            # 3. 安装依赖：高版本GCC、Make等
             yum install -y \
-              java-1.8.0-openjdk-devel \
-              ninja-build \
-              devtoolset-11 \
-              devtoolset-11-gcc-c++ \
+                devtoolset-11 \
+                devtoolset-11-gcc-c++ \
+                make \
+                perl-IPC-Cmd \
+                openssl-devel \
+                zlib-devel \
+                wget
             source /opt/rh/devtoolset-11/enable
             make -C /duckdb release
           "
