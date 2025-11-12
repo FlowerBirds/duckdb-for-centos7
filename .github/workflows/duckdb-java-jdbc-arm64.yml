@@ -1,1 +1,123 @@
 
+name: Build Java JDBC (arm64)
+on:
+  workflow_dispatch:
+    inputs:
+      duckdb_tag:
+        description: 'DuckDB Java JDBC tag to build (e.g., v1.0.0)'
+        required: true
+        type: string
+permissions:
+  contents: write
+  pull-requests: read
+env:
+  AWS_ENDPOINT_URL: ${{ secrets.S3_DUCKDB_STAGING_ENDPOINT }}
+  AWS_ACCESS_KEY_ID: ${{ secrets.S3_DUCKDB_STAGING_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.S3_DUCKDB_STAGING_KEY }}
+
+jobs:
+  java-linux-aarch64:
+    name: Java Linux (aarch64)
+    runs-on: ubuntu-24.04-arm
+    env:
+      MANYLINUX_IMAGE: quay.io/pypa/manylinux2014_aarch64
+    steps:
+      - name: Checkout DuckDB JDBC source
+        uses: actions/checkout@v4
+        with:
+          repository: duckdb/duckdb-jdbc
+          ref: ${{ github.event.inputs.duckdb_tag }}
+          fetch-depth: 0
+
+      - name: Build
+        shell: bash
+        run: |
+          docker run                                    \
+          -v.:/duckdb                                   \
+          -e GEN=ninja                                  \
+          -e JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk  \
+          ${{ env.MANYLINUX_IMAGE }}                    \
+          bash -c "
+            set -e
+            cat /etc/os-release
+            # Replace CentOS 7 repositories with archived mirrors (EOL fix)
+            sed -i 's|^mirrorlist=|#mirrorlist=|g' /etc/yum.repos.d/CentOS-*
+            sed -i 's|^#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-*
+            
+            # Fix SCLo repositories (Software Collections)
+            if [ -f /etc/yum.repos.d/CentOS-SCLo-scl.repo ]; then
+              sed -i 's|^mirrorlist=|#mirrorlist=|g' /etc/yum.repos.d/CentOS-SCLo-*
+              sed -i 's|^#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-SCLo-*
+            fi
+            # 3. 安装依赖：高版本GCC、Make等
+            yum install -y \
+                centos-release-scl-rh \
+                devtoolset-10-gcc \
+                devtoolset-10-gcc-c++ \
+                devtoolset-10-binutils \
+                java-1.8.0-openjdk-devel \
+                ninja-build \
+                make \
+                perl-IPC-Cmd \
+                openssl-devel \
+                zlib-devel \
+                wget
+            source /opt/rh/gcc-toolset-10/enable
+            # make -C /duckdb release
+            cd /duckdb
+            
+            # 把内容插到文件顶部
+            cat /duckdb/centos7/header.cmake CMakeLists.txt > /tmp/CMakeLists.txt.new
+            mv /tmp/CMakeLists.txt.new CMakeLists.txt
+            sed -i '11i\#define _GLIBCXX_USE_CXX11_ABI 1' src/duckdb/src/include/duckdb/common/platform.hpp
+            head -n 15 src/duckdb/src/include/duckdb/common/platform.hpp
+            ls -l
+            mkdir -p build/release
+            cd build/release 
+            cmake -DCMAKE_BUILD_TYPE=Release \
+              -DDUCKDB_EXPLICIT_PLATFORM=linux_amd64 \
+              -DCMAKE_CXX_FLAGS="-D_GLIBCXX_USE_CXX11_ABI=1" \
+              -DCMAKE_C_FLAGS="-D_GLIBCXX_USE_CXX11_ABI=1" \
+              -G "Ninja"  ../.. 
+            cmake --build . --config Release
+          "
+      - name: List Symbols
+        run: |
+          nm -gU ./build/release/libduckdb_java.so_linux_arm64
+
+
+      - name: Deploy
+        shell: bash
+        run: |
+          cp build/release/duckdb_jdbc.jar duckdb_jdbc-linux-aarch64.jar
+          ./scripts/upload-assets-to-staging.sh github_release duckdb_jdbc-linux-aarch64.jar
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: java-linux-aarch64
+          path: |
+            build/release/duckdb_jdbc.jar
+
+  release:
+    name: Create Release
+    needs:
+      - java-linux-aarch64
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: duckdb-java-jdbc-${{ github.event.inputs.duckdb_tag }}-centos7（aarch64）
+          name: DuckDB Java JDBC ${{ github.event.inputs.duckdb_tag }} for CentOS7（aarch64）
+          body: |
+            DuckDB Java JDBC ${{ github.event.inputs.duckdb_tag }} built for CentOS7 (glibc 2.17)
+            - amd64 and arm64 architectures
+            - Static and dynamic libraries included
+          files: |
+            libduckdb*
+            duckdb_*
+          draft: false
+          prerelease: false
