@@ -36,6 +36,7 @@ jobs:
           -v.:/duckdb                                   \
           -e GEN=ninja                                  \
           -e JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk  \
+          -e DUCKDB_PLATFORM=linux_amd64                \
           ${{ env.MANYLINUX_IMAGE }}                    \
           bash -c "
             set -e
