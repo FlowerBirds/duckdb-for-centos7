@@ -36,6 +36,8 @@ jobs:
           -v.:/duckdb                                   \
           -e GEN=ninja                                  \
           -e JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk  \
+          -e DUCKDB_EXPLICIT_PLATFORM=linux_amd64       \
+          -e DUCKDB_PLATFORM=linux_amd64                \
           ${{ env.MANYLINUX_IMAGE }}                    \
           bash -c "
             set -e
@@ -60,19 +62,17 @@ jobs:
                 openssl-devel \
                 zlib-devel \
                 wget
-            source /opt/rh/devtoolset-11/enable
-            # ---------- 强制新 ABI ----------
-            export CMAKE_CXX_FLAGS='-D_GLIBCXX_USE_CXX11_ABI=1'
-            export CMAKE_C_FLAGS='-D_GLIBCXX_USE_CXX11_ABI=1'
+            # 4. 安装高版本CMake（CentOS 7默认cmake版本过低）
+            wget https://github.com/Kitware/CMake/releases/download/v3.21.3/cmake-3.21.3-linux-x86_64.sh
+            chmod +x cmake-3.21.3-linux-x86_64.sh
+            ./cmake-3.21.3-linux-x86_64.sh --skip-license --prefix=/usr/local
             
-            #make -C /duckdb release
-            # ---------- 编译 ----------
-            make -C /duckdb release \
-               CMAKE_CXX_FLAGS="-D_GLIBCXX_USE_CXX11_ABI=1" \
-               CMAKE_C_FLAGS="-D_GLIBCXX_USE_CXX11_ABI=1" \
-               DUCKDB_EXPLICIT_PLATFORM=linux_amd64
-            # ---------- 打包 jar ----------
-            cd /duckdb/build && make -f ../Makefile jdbc
+            # 5. 启用高版本GCC
+            source /opt/rh/devtoolset-11/enable
+            export CC=gcc
+            export CXX=g++
+            
+            make -C /duckdb release
           "
 
       - name: List Symbols
