@@ -70,12 +70,11 @@ jobs:
             source /opt/rh/devtoolset-11/enable
             
             # make -C /duckdb release
-            ls -l /duckdb
-            cp header.cmake /tmp/header.cmake
+            ls -l /
             cd /duckdb
             
             # 把内容插到文件顶部
-            cat /tmp/header.cmake CMakeLists.txt > /tmp/CMakeLists.txt.new
+            cat /duckdb/centos7/header.cmake CMakeLists.txt > /tmp/CMakeLists.txt.new
             mv /tmp/CMakeLists.txt.new CMakeLists.txt
             ls -l
             mkdir -p build/release
