@@ -75,10 +75,10 @@ jobs:
             # make -C /duckdb release
             ls -l
             cd /duckdb
-            sed -i '1i\
-              # Force new C++11 ABI\
-              set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_GLIBCXX_USE_CXX11_ABI=1" CACHE STRING "" FORCE)\
-              set(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS}   -D_GLIBCXX_USE_CXX11_ABI=1" CACHE STRING "" FORCE)\
+            sed -i '1i \
+              # Force new C++11 ABI \
+              set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_GLIBCXX_USE_CXX11_ABI=1" CACHE STRING "" FORCE) \
+              set(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS}   -D_GLIBCXX_USE_CXX11_ABI=1" CACHE STRING "" FORCE) \
               ' CMakeLists.txt
             ls -l
             mkdir -p build/release
