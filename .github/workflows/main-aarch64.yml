@@ -47,7 +47,7 @@ jobs:
           -e BUILD_BENCHMARK=1                                                   \
           -e FORCE_WARN_UNUSED=1                                                 \
           -e DUCKDB_EXPLICIT_PLATFORM=linux_${{ matrix.config.arch }}            \
-          -e DUCKDB_PLATFORM=linux_amd64                                         \
+          -e DUCKDB_PLATFORM=linux_aarch64                                         \
           quay.io/pypa/${{ matrix.config.image }}                  \
           bash -c "
             set -e
@@ -62,8 +62,10 @@ jobs:
             fi
             # 3. 安装依赖：高版本GCC、Make等
             yum install -y \
-                devtoolset-11 \
-                devtoolset-11-gcc-c++ \
+                centos-release-scl-rh \
+                devtoolset-10-gcc \
+                devtoolset-10-gcc-c++ \
+                devtoolset-10-binutils \
                 make \
                 perl-IPC-Cmd \
                 openssl-devel \
@@ -71,12 +73,12 @@ jobs:
                 wget
               
               # 4. 安装高版本CMake（CentOS 7默认cmake版本过低）
-              wget https://github.com/Kitware/CMake/releases/download/v3.21.3/cmake-3.21.3-linux-x86_64.sh
-              chmod +x cmake-3.21.3-linux-x86_64.sh
-              ./cmake-3.21.3-linux-x86_64.sh --skip-license --prefix=/usr/local
+              wget https://github.com/Kitware/CMake/releases/download/v3.21.3/cmake-3.21.3-linux-aarch64.sh
+              chmod +x cmake-3.21.3-linux-aarch64.sh
+              ./cmake-3.21.3-linux-aarch64.sh --skip-license --prefix=/usr/local
               
               # 5. 启用高版本GCC
-              source /opt/rh/devtoolset-11/enable
+              source /opt/rh/devtoolset-10/enable
               export CC=gcc
               export CXX=g++
       
