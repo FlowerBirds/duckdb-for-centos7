@@ -16,7 +16,7 @@ jobs:
       fail-fast: false
       matrix:
         config: 
-          - { arch: aarch64, image: manylinux2014_aarch64, runner: ubuntu-arm64 }
+          - { arch: arm64, image: manylinux2014_aarch64, runner: ubuntu-24.04-arm }
 
     name: Build (${{ matrix.config.arch }})
     runs-on: ${{ matrix.config.runner }}
