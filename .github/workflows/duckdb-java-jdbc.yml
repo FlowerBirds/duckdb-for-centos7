@@ -69,7 +69,7 @@ jobs:
             source /opt/rh/devtoolset-11/enable
             
             # make -C /duckdb release
-            ls -l
+            ls -l /duckdb
             cp header.cmake /tmp/header.cmake
             cd /duckdb
             
