@@ -1,0 +1,239 @@
+name: Build Java JDBC 
+on:
+  workflow_dispatch:
+    inputs:
+      duckdb_tag:
+        description: 'DuckDB Java JDBC tag to build (e.g., v1.0.0)'
+        required: true
+        type: string
+permissions:
+  contents: write
+  pull-requests: read
+env:
+  AWS_ENDPOINT_URL: ${{ secrets.S3_DUCKDB_STAGING_ENDPOINT }}
+  AWS_ACCESS_KEY_ID: ${{ secrets.S3_DUCKDB_STAGING_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.S3_DUCKDB_STAGING_KEY }}
+
+jobs:
+  format-check:
+    name: Format Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - run: |
+          python3 -m pip install --user clang_format==11.0.1
+          make format-check
+
+  java-linux-amd64:
+    name: Java Linux (amd64)
+    runs-on: ubuntu-latest
+    needs: format-check
+    env:
+      MANYLINUX_IMAGE: quay.io/pypa/manylinux2014_x86_64
+      # Spark testing env vars below
+      DUCKDB_JDBC_JAR: ${{ github.workspace }}/build/release/duckdb_jdbc.jar
+      SPARK_SQL_EXE: ${{ github.workspace }}/sparktest/spark-3.5.3-bin-hadoop3/bin/spark-sql
+      POSTGRES_HOST: 127.0.0.1
+      POSTGRES_PORT: 5432
+      POSTGRES_MAINTENANCE_DB: postgres
+      POSTGRES_USERNAME: postgres
+      POSTGRES_PASSWORD: postgres
+      DUCKLAKE_CATALOG_DB: lake_test
+      PARQUET_FILE_URL: https://blobs.duckdb.org/data/taxi_2019_04.parquet
+      SESSION_INIT_SQL_FILE: ${{ github.workspace }}/sparktest/spark-session-init.sql
+      MINIO_EXE: ${{ github.workspace }}/sparktest/minio
+      MINIO_PID: ${{ github.workspace }}/sparktest/minio.pid
+      MC_EXE: ${{ github.workspace }}/sparktest/mc
+      MINIO_DATA: ${{ github.workspace }}/sparktest/minio_data
+      MINIO_HOST: 127.0.0.1
+      MINIO_PORT: 9000
+    steps:
+      - name: Checkout DuckDB JDBC source
+        uses: actions/checkout@v4
+        with:
+          repository: duckdb/duckdb-jdbc
+          ref: ${{ github.event.inputs.duckdb_tag }}
+          fetch-depth: 0
+
+      - name: Build
+        run: |
+          docker run                                    \
+          -v.:/duckdb                                   \
+          -e GEN=ninja                                  \
+          -e JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk  \
+          ${{ env.MANYLINUX_IMAGE }}                    \
+          bash -c "
+            set -e
+            cat /etc/os-release
+            dnf install -y \
+              java-1.8.0-openjdk-devel \
+              ninja-build \
+              devtoolset-11 \
+              devtoolset-11-gcc-c++ \
+            source /opt/rh/devtoolset-11/enable
+            make -C /duckdb release
+          "
+
+      - name: List Symbols
+        run: |
+          nm -gU ./build/release/libduckdb_java.so_linux_amd64
+
+      - name: Check Module Name
+        run: |
+          java \
+            --module-path ./build/release/duckdb_jdbc.jar \
+            -d duckdb.jdbc
+
+      - name: JDBC Tests EL8
+        if: ${{ inputs.skip_tests != 'true' }}
+        run: |
+          docker run                                    \
+          -v.:/duckdb                                   \
+          ${{ env.MANYLINUX_IMAGE }}                    \
+          bash -c "
+            set -e
+            cat /etc/os-release
+            dnf install -y \
+              java-1.8.0-openjdk
+            /usr/lib/jvm/jre-1.8.0-openjdk/bin/java -version
+            cd /duckdb
+            /usr/lib/jvm/jre-1.8.0-openjdk/bin/java \
+              -cp ./build/release/duckdb_jdbc_tests.jar:./build/release/duckdb_jdbc.jar \
+              org.duckdb.TestDuckDBJDBC
+            rm ./test1.db
+          "
+
+      - name: Deploy
+        shell: bash
+        run: |
+          cp build/release/duckdb_jdbc.jar duckdb_jdbc-linux-amd64.jar
+          ./scripts/upload-assets-to-staging.sh github_release duckdb_jdbc-linux-amd64.jar
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: java-linux-amd64
+          path: |
+            build/release/duckdb_jdbc.jar
+
+  java-linux-aarch64:
+    name: Java Linux (aarch64)
+    runs-on: ubuntu-24.04-arm
+    needs: java-linux-amd64
+    env:
+      MANYLINUX_IMAGE: quay.io/pypa/manylinux2014_aarch64
+    steps:
+      - name: Checkout DuckDB JDBC source
+        uses: actions/checkout@v4
+        with:
+          repository: duckdb/duckdb-jdbc
+          ref: ${{ github.event.inputs.duckdb_tag }}
+          fetch-depth: 0
+
+      - name: Build
+        shell: bash
+        run: |
+          docker run                                    \
+          -v.:/duckdb                                   \
+          -e GEN=ninja                                  \
+          -e JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk  \
+          ${{ env.MANYLINUX_IMAGE }}                    \
+          bash -c "
+            set -e
+            cat /etc/os-release
+            dnf install -y \
+              java-1.8.0-openjdk-devel \
+              ninja-build \
+              gcc-toolset-12-gcc-c++
+            source /opt/rh/gcc-toolset-12/enable
+            make -C /duckdb release
+          "
+      - name: List Symbols
+        run: |
+          nm -gU ./build/release/libduckdb_java.so_linux_arm64
+
+
+      - name: Deploy
+        shell: bash
+        run: |
+          cp build/release/duckdb_jdbc.jar duckdb_jdbc-linux-aarch64.jar
+          ./scripts/upload-assets-to-staging.sh github_release duckdb_jdbc-linux-aarch64.jar
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: java-linux-aarch64
+          path: |
+            build/release/duckdb_jdbc.jar
+
+
+  java-combine:
+    if: ${{ github.repository == 'duckdb/duckdb-java' && inputs.override_git_describe == '' && startsWith(github.ref, 'refs/tags/') }}
+    name: Java Combine
+    runs-on: ubuntu-latest
+    needs:
+      - java-linux-amd64
+      - java-linux-aarch64
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - shell: bash
+        run: mkdir jdbc-artifacts
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: java-linux-amd64
+          path: jdbc-artifacts/java-linux-amd64
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: java-linux-aarch64
+          path: jdbc-artifacts/java-linux-aarch64
+
+      - name: Combine JARs
+        shell: bash
+        env:
+          MAVEN_USERNAME: ${{ secrets.MAVEN_USERNAME }}
+          MAVEN_PASSWORD: ${{ secrets.MAVEN_PASSWORD }}
+        run: |
+          mkdir -m  700 -p ~/.gnupg
+          echo -e "passphrase asdf\npinentry-mode loopback\nno-tty\nbatch\n" > ~/.gnupg/gpg.conf
+          echo "${{ secrets.MAVEN_PGP_PK }}" | base64 -d > maven_pgp_key
+          gpg --batch --import maven_pgp_key
+          python ./scripts/jdbc_maven_deploy.py ${{ github.ref_name }} jdbc-artifacts .
+
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: java-jars
+          path: |
+            jdbc-artifacts
+
+  release:
+    name: Create Release
+    needs:
+      - java-linux-amd64
+      - java-linux-aarch64
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: duckdb-java-jdbc-${{ github.event.inputs.duckdb_tag }}-centos7
+          name: DuckDB Java JDBC ${{ github.event.inputs.duckdb_tag }} for CentOS7
+          body: |
+            DuckDB Java JDBC ${{ github.event.inputs.duckdb_tag }} built for CentOS7 (glibc 2.17)
+            - amd64 and arm64 architectures
+            - Static and dynamic libraries included
+          files: |
+            libduckdb*
+            duckdb_*
+          draft: false
+          prerelease: false
