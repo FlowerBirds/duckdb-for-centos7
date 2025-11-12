@@ -36,8 +36,6 @@ jobs:
           -v.:/duckdb                                   \
           -e GEN=ninja                                  \
           -e JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk  \
-          -e DUCKDB_EXPLICIT_PLATFORM=linux_amd64       \
-          -e DUCKDB_PLATFORM=linux_amd64                \
           ${{ env.MANYLINUX_IMAGE }}                    \
           bash -c "
             set -e
@@ -63,7 +61,10 @@ jobs:
                 zlib-devel \
                 wget
             source /opt/rh/devtoolset-11/enable
-            export CMAKE_CXX_FLAGS="-D_GLIBCXX_USE_CXX11_ABI=1"
+            # ---------- 强制新 ABI ----------
+            export CMAKE_CXX_FLAGS='-D_GLIBCXX_USE_CXX11_ABI=1'
+            export CMAKE_C_FLAGS='-D_GLIBCXX_USE_CXX11_ABI=1'
+            
             make -C /duckdb release
           "
 
