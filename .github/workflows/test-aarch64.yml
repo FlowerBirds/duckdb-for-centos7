@@ -1,0 +1,54 @@
+name: test（aarch64）
+
+on:
+  workflow_dispatch:
+    inputs:
+      duckdb_tag:
+        description: 'DuckDB tag to build (e.g., v1.0.0)'
+        required: true
+        type: string
+permissions:
+  contents: write
+  pull-requests: read
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        config: 
+          - { arch: arm64, image: manylinux2014_aarch64, runner: ubuntu-24.04-arm }
+
+    name: Build (${{ matrix.config.arch }})
+    runs-on: ${{ matrix.config.runner }}
+
+    steps:
+      - name: Build for CentOS7 (glibc 2.17)
+        shell: bash
+        run: |
+          export PWD=$(pwd)
+          docker run                                                             \
+          -v $PWD:$PWD                                                           \
+          -e CMAKE_BUILD_PARALLEL_LEVEL=2                                        \
+          -e OVERRIDE_GIT_DESCRIBE=$OVERRIDE_GIT_DESCRIBE                        \
+          -e EXTENSION_CONFIGS="$PWD/.github/config/bundled_extensions.cmake"    \
+          -e ENABLE_EXTENSION_AUTOLOADING=1                                      \
+          -e ENABLE_EXTENSION_AUTOINSTALL=1                                      \
+          -e BUILD_BENCHMARK=1                                                   \
+          -e FORCE_WARN_UNUSED=1                                                 \
+          -e DUCKDB_EXPLICIT_PLATFORM=linux_${{ matrix.config.arch }}            \
+          -e DUCKDB_PLATFORM=linux_aarch64                                         \
+          quay.io/pypa/${{ matrix.config.image }}                  \
+          bash -c "
+            set -e
+            # Replace CentOS 7 repositories with archived mirrors (EOL fix)
+            sed -i 's|^mirrorlist=|#mirrorlist=|g' /etc/yum.repos.d/CentOS-*
+            sed -i 's|^#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-*
+            
+            # Fix SCLo repositories (Software Collections)
+            if [ -f /etc/yum.repos.d/CentOS-SCLo-scl.repo ]; then
+              sed -i 's|^mirrorlist=|#mirrorlist=|g' /etc/yum.repos.d/CentOS-SCLo-*
+              sed -i 's|^#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-SCLo-*
+            fi
+            # 3. 安装依赖：高版本GCC、Make等
+            yum search ninja
+            "
