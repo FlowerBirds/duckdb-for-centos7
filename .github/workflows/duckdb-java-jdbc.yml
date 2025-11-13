@@ -107,7 +107,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: java-linux-amd64
+          name: java-linux-amd64-${{ github.event.inputs.duckdb_tag }}
           path: |
             build/release/duckdb_jdbc.jar
 
@@ -130,7 +130,6 @@ jobs:
             - amd64 and arm64 architectures
             - Static and dynamic libraries included
           files: |
-            libduckdb*
-            duckdb_*
+            java-linux-amd64-*
           draft: false
           prerelease: false
