@@ -50,7 +50,7 @@ jobs:
               sed -i 's|^#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-SCLo-*
             fi
             # 3. 安装依赖：高版本GCC、Make等
-            yum search git
+            yum search git python3
             git clone --depth=1 https://github.com/ninja-build/ninja.git /tmp/ninja && \
             cd /tmp/ninja && \
             python3 configure.py --bootstrap && \
