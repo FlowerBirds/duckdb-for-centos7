@@ -110,6 +110,7 @@ jobs:
           name: java-linux-amd64-${{ github.event.inputs.duckdb_tag }}
           path: |
             build/release/duckdb_jdbc.jar
+            build/release/libduckdb_java.so_linux_amd64
 
   release:
     name: Create Release
@@ -121,7 +122,9 @@ jobs:
         uses: actions/download-artifact@v4
 
       - name: View
-        run: ls -l
+        run: 
+          ls -l
+          
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -133,6 +136,6 @@ jobs:
             - amd64 and arm64 architectures
             - Static and dynamic libraries included
           files: |
-            java-linux-amd64-*
+            java-linux-amd64-${{ github.event.inputs.duckdb_tag }}/*
           draft: false
           prerelease: false
