@@ -62,7 +62,7 @@ jobs:
                 openssl-devel \
                 zlib-devel \
                 wget
-            source /opt/rh/gcc-toolset-10/enable
+            source /opt/rh/devtoolset-10/enable
 
             git clone --depth=1 https://github.com/ninja-build/ninja.git /tmp/ninja && \
             cd /tmp/ninja && \
