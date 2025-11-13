@@ -56,13 +56,18 @@ jobs:
                 devtoolset-10-gcc-c++ \
                 devtoolset-10-binutils \
                 java-1.8.0-openjdk-devel \
-                ninja-build \
+                python3 \
                 make \
                 perl-IPC-Cmd \
                 openssl-devel \
                 zlib-devel \
                 wget
             source /opt/rh/gcc-toolset-10/enable
+
+            git clone --depth=1 https://github.com/ninja-build/ninja.git /tmp/ninja && \
+            cd /tmp/ninja && \
+            python3 configure.py --bootstrap && \
+            cp ninja /usr/local/bin/
             # make -C /duckdb release
             cd /duckdb
             
