@@ -100,6 +100,7 @@ jobs:
           name: java-linux-aarch64
           path: |
             build/release/duckdb_jdbc.jar
+            build/release/libduckdb_java.so_linux_arm64
 
   release:
     name: Create Release
