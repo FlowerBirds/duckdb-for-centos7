@@ -25,7 +25,7 @@ jobs:
       - name: Checkout DuckDB JDBC source
         uses: actions/checkout@v4
         with:
-          repository: duckdb/duckdb-jdbc
+          repository: duckdb/duckdb-java
           ref: ${{ github.event.inputs.duckdb_tag }}
           fetch-depth: 0
 
